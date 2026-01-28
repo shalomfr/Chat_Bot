@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "https://openrouter.ai/api/v1",
 });
 
 export interface ChatMessage {
@@ -19,7 +20,7 @@ export async function generateChatResponse(
     : systemPrompt;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "anthropic/claude-sonnet-4-20250514",
     max_tokens: 1024,
     system: fullSystemPrompt,
     messages: messages.map((m) => ({
@@ -42,7 +43,7 @@ export async function* generateChatResponseStream(
     : systemPrompt;
 
   const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
+    model: "anthropic/claude-sonnet-4-20250514",
     max_tokens: 1024,
     system: fullSystemPrompt,
     messages: messages.map((m) => ({
