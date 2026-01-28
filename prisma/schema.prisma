@@ -1,0 +1,90 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  chatbots Chatbot[]
+}
+
+model Chatbot {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  systemPrompt   String?  @db.Text
+  welcomeMessage String?  @default("שלום! איך אוכל לעזור לך היום?")
+  primaryColor   String   @default("#3B82F6")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  knowledgeSources KnowledgeSource[]
+  conversations    Conversation[]
+}
+
+model KnowledgeSource {
+  id        String   @id @default(cuid())
+  chatbotId String
+  chatbot   Chatbot  @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  type      String   // "file" | "url"
+  name      String
+  url       String?
+  content   String?  @db.Text
+  status    String   @default("pending") // pending | processing | ready | failed
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks KnowledgeChunk[]
+}
+
+model KnowledgeChunk {
+  id         String                       @id @default(cuid())
+  sourceId   String
+  source     KnowledgeSource              @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  chatbotId  String
+  content    String                       @db.Text
+  embedding  Unsupported("vector(1536)")?
+  chunkIndex Int
+  createdAt  DateTime                     @default(now())
+
+  @@index([chatbotId])
+  @@index([sourceId])
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  chatbotId String
+  chatbot   Chatbot   @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  sessionId String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([chatbotId])
+  @@index([sessionId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // "user" | "assistant"
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
