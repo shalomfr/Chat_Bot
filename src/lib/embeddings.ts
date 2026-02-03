@@ -1,19 +1,20 @@
 import OpenAI from "openai";
 
-let openaiClient: OpenAI | null = null;
+let openrouterClient: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+function getOpenRouterClient(): OpenAI {
+  if (!openrouterClient) {
+    openrouterClient = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1",
     });
   }
-  return openaiClient;
+  return openrouterClient;
 }
 
 export async function createEmbedding(text: string): Promise<number[]> {
-  const response = await getOpenAIClient().embeddings.create({
-    model: "text-embedding-3-small",
+  const response = await getOpenRouterClient().embeddings.create({
+    model: "openai/text-embedding-3-small",
     input: text,
   });
 
@@ -23,8 +24,8 @@ export async function createEmbedding(text: string): Promise<number[]> {
 export async function createEmbeddings(
   texts: string[]
 ): Promise<number[][]> {
-  const response = await getOpenAIClient().embeddings.create({
-    model: "text-embedding-3-small",
+  const response = await getOpenRouterClient().embeddings.create({
+    model: "openai/text-embedding-3-small",
     input: texts,
   });
 
