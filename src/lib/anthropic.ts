@@ -1,9 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-});
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1",
+    });
+  }
+  return anthropicClient;
+}
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -19,7 +26,7 @@ export async function generateChatResponse(
     ? `${systemPrompt}\n\nהנה מידע רלוונטי מבסיס הידע שלך:\n${context}\n\nהשתמש במידע הזה כדי לענות על שאלות המשתמש. אם המידע לא רלוונטי לשאלה, אל תציין אותו.`
     : systemPrompt;
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropicClient().messages.create({
     model: "anthropic/claude-sonnet-4-20250514",
     max_tokens: 1024,
     system: fullSystemPrompt,
@@ -42,7 +49,7 @@ export async function* generateChatResponseStream(
     ? `${systemPrompt}\n\nהנה מידע רלוונטי מבסיס הידע שלך:\n${context}\n\nהשתמש במידע הזה כדי לענות על שאלות המשתמש. אם המידע לא רלוונטי לשאלה, אל תציין אותו.`
     : systemPrompt;
 
-  const stream = await anthropic.messages.stream({
+  const stream = await getAnthropicClient().messages.stream({
     model: "anthropic/claude-sonnet-4-20250514",
     max_tokens: 1024,
     system: fullSystemPrompt,
