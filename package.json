@@ -34,7 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
-    "next": "14.2.21",
+    "next": "^14.2.35",
     "next-auth": "^5.0.0-beta.30",
     "openai": "^4.77.0",
     "pdf-parse": "^1.1.1",
@@ -52,7 +52,7 @@
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.27.2",
     "prisma": "^6.2.1",
     "typescript": "^5.7.3"
   }
