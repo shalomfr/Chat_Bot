@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateChatResponseStream, ChatMessage } from "@/lib/anthropic";
-import { queryKnowledge } from "@/lib/vectors";
+import { generateChatResponse, ChatMessage } from "@/lib/anthropic";
 import { withRetry } from "@/lib/withRetry";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Allow up to 60 seconds for response
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,16 +81,8 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Get relevant context from knowledge base
-    let context = "";
-    try {
-      const relevantChunks = await queryKnowledge(chatbot.id, message, 5);
-      if (relevantChunks.length > 0) {
-        context = relevantChunks.join("\n\n---\n\n");
-      }
-    } catch (e) {
-      console.error("Knowledge query error:", e);
-    }
+    // Skip knowledge query for now to simplify debugging
+    const context = "";
 
     // Build message history
     const chatMessages: ChatMessage[] = conversation.messages.map((m: { role: string; content: string }) => ({
@@ -99,47 +91,29 @@ export async function POST(req: NextRequest) {
     }));
     chatMessages.push({ role: "user", content: message });
 
-    // Create streaming response
-    const encoder = new TextEncoder();
-    let fullResponse = "";
+    // Get response from OpenRouter (non-streaming for now)
+    const systemPrompt = chatbot.systemPrompt || "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה.";
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          const systemPrompt = chatbot.systemPrompt || "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה.";
+    const response = await generateChatResponse(
+      chatMessages,
+      systemPrompt,
+      context
+    );
 
-          for await (const chunk of generateChatResponseStream(
-            chatMessages,
-            systemPrompt,
-            context
-          )) {
-            fullResponse += chunk;
-            controller.enqueue(encoder.encode(chunk));
-          }
+    // Save assistant message
+    await withRetry(() =>
+      prisma.message.create({
+        data: {
+          conversationId: conversation!.id,
+          role: "assistant",
+          content: response,
+        },
+      })
+    );
 
-          // Save assistant message
-          await withRetry(() =>
-            prisma.message.create({
-              data: {
-                conversationId: conversation!.id,
-                role: "assistant",
-                content: fullResponse,
-              },
-            })
-          );
-
-          controller.close();
-        } catch (error) {
-          console.error("Stream error:", error);
-          controller.error(error);
-        }
-      },
-    });
-
-    return new Response(stream, {
+    return new Response(response, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
         "Access-Control-Allow-Origin": "*",
       },
     });
@@ -152,8 +126,8 @@ export async function POST(req: NextRequest) {
       error.message?.includes('ECONNRESET');
 
     const status = isConnectionError ? 503 : 500;
-    const message = isConnectionError ? "Database connection error" : "Server error";
-    return new Response(message, { status });
+    const errorMessage = isConnectionError ? "Database connection error" : `Server error: ${error.message}`;
+    return new Response(errorMessage, { status });
   }
 }
 
