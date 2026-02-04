@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { withRetry } from "@/lib/withRetry";
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30; // Quick save only - no processing
+export const maxDuration = 30; // Quick save only - cron processes pending files
 
 export async function POST(req: NextRequest) {
   console.log("Upload route called at", new Date().toISOString());
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         }
         const processedContent = content.slice(0, maxContentLength);
 
-        // Save to database with pending status (processing done separately)
+        // Save to database with pending status - cron will process it
         const source = await withRetry(() =>
           prisma.knowledgeSource.create({
             data: {
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
               type: "file",
               name: file.name,
               content: processedContent,
-              status: "pending", // Changed from "processing" - frontend will trigger processing
+              status: "pending",
             },
           })
         );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,9 @@ interface KnowledgeSource {
   createdAt: string;
 }
 
+// Polling interval in milliseconds
+const POLL_INTERVAL = 3000;
+
 export default function KnowledgePage() {
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,73 +43,53 @@ export default function KnowledgePage() {
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchSources();
-  }, []);
+  // Check if there are sources being processed
+  const hasProcessingSources = sources.some(
+    s => s.status === "processing" || s.status === "pending"
+  );
 
-  const fetchSources = async () => {
+  // Fetch sources
+  const fetchSources = useCallback(async () => {
     try {
       const res = await fetch("/api/knowledge");
       if (res.ok) {
         const data = await res.json();
         setSources(data);
+        return data;
       }
     } catch (error) {
       console.error("Error fetching sources:", error);
-    } finally {
-      setIsLoading(false);
     }
-  };
+    return null;
+  }, []);
 
-  // Process a source in the background by calling the process route
-  const processSourceInBackground = async (sourceId: string) => {
-    // Update local state to show "processing"
-    setSources(prev => prev.map(s =>
-      s.id === sourceId ? { ...s, status: "processing" } : s
-    ));
-
-    try {
-      const res = await fetch("/api/knowledge/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId }),
-      });
-
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        // Server returned HTML error - refresh to check actual status
-        console.error("Process returned non-JSON response");
-        fetchSources();
-        return;
-      }
-
-      const result = await res.json();
-
-      // Update local state with the result
-      setSources(prev => prev.map(s =>
-        s.id === sourceId ? { ...s, ...result } : s
-      ));
-
-      if (result.status === "ready") {
-        toast({
-          title: "הצלחה!",
-          description: "הקובץ עובד בהצלחה",
-        });
-      } else if (result.status === "failed") {
-        toast({
-          title: "שגיאה בעיבוד",
-          description: result.error || "העיבוד נכשל",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Process error:", error);
-      // On error, refresh to get actual state
-      fetchSources();
+  // Start/stop polling based on processing status
+  useEffect(() => {
+    if (hasProcessingSources && !pollingRef.current) {
+      console.log("Starting polling for status updates...");
+      pollingRef.current = setInterval(fetchSources, POLL_INTERVAL);
+    } else if (!hasProcessingSources && pollingRef.current) {
+      console.log("Stopping polling - no more processing sources");
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
-  };
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [hasProcessingSources, fetchSources]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchSources().finally(() => setIsLoading(false));
+  }, [fetchSources]);
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -137,19 +120,14 @@ export default function KnowledgePage() {
         throw new Error(data.error || "שגיאה בהעלאה");
       }
 
-      // Step 2: Add uploaded sources to local state
+      // Add uploaded sources to local state - cron will process them
       const uploadedSources = Array.isArray(data) ? data : [data];
       setSources(prev => [...uploadedSources, ...prev]);
 
       toast({
         title: "הקבצים נשמרו",
-        description: "מתחיל לעבד את התוכן...",
+        description: "הקבצים יעובדו בקרוב אוטומטית",
       });
-
-      // Step 3: Process each source in the background
-      for (const source of uploadedSources) {
-        processSourceInBackground(source.id);
-      }
 
     } catch (error: any) {
       toast({
