@@ -228,9 +228,9 @@ export default function ConversationsPage() {
                           selectedConversation?.id === conv.id ? "text-white" : "text-gray-500"
                         }`} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-800 truncate">
-                          {conv.messages[0]?.content.slice(0, 40) || "שיחה ריקה"}...
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="font-medium text-gray-800 truncate text-ellipsis">
+                          {conv.messages[0]?.content.slice(0, 40) || "שיחה ריקה"}
                         </p>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Clock className="h-3 w-3" />
