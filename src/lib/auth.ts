@@ -4,34 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
-
-// Helper function to retry database operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  maxRetries = 3
-): Promise<T> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await operation();
-    } catch (error: any) {
-      const isConnectionError =
-        error.message?.includes('closed the connection') ||
-        error.message?.includes('P1017') ||
-        error.message?.includes('P1001') ||
-        error.message?.includes('P1002');
-
-      if (isConnectionError && i < maxRetries - 1) {
-        console.log(`Auth retry ${i + 1}/${maxRetries} after connection error`);
-        await prisma.$disconnect();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await prisma.$connect();
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw new Error('Max retries reached');
-}
+import { withRetry } from "./withRetry";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -149,28 +122,34 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
+  const user = await withRetry(() =>
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+    })
+  );
 
   if (!user) {
     return null;
   }
 
   // Create default chatbot for new users if they don't have one
-  const chatbot = await prisma.chatbot.findFirst({
-    where: { userId: user.id },
-  });
+  const chatbot = await withRetry(() =>
+    prisma.chatbot.findFirst({
+      where: { userId: user.id },
+    })
+  );
 
   if (!chatbot) {
-    await prisma.chatbot.create({
-      data: {
-        userId: user.id,
-        name: "הצ'אטבוט שלי",
-        systemPrompt: "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה בעברית.",
-        welcomeMessage: "שלום! איך אוכל לעזור לך היום?",
-      },
-    });
+    await withRetry(() =>
+      prisma.chatbot.create({
+        data: {
+          userId: user.id,
+          name: "הצ'אטבוט שלי",
+          systemPrompt: "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה בעברית.",
+          welcomeMessage: "שלום! איך אוכל לעזור לך היום?",
+        },
+      })
+    );
   }
 
   return user;

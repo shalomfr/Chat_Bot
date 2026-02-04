@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateChatResponseStream, ChatMessage } from "@/lib/anthropic";
 import { queryKnowledge } from "@/lib/vectors";
+import { withRetry } from "@/lib/withRetry";
 
 export const dynamic = 'force-dynamic';
 
@@ -19,18 +20,22 @@ export async function POST(req: NextRequest) {
 
     if (providedChatbotId) {
       // Widget request
-      chatbot = await prisma.chatbot.findUnique({
-        where: { id: providedChatbotId },
-      });
+      chatbot = await withRetry(() =>
+        prisma.chatbot.findUnique({
+          where: { id: providedChatbotId },
+        })
+      );
     } else {
       // Playground request - requires auth
       const user = await getCurrentUser();
       if (!user) {
         return new Response("Unauthorized", { status: 401 });
       }
-      chatbot = await prisma.chatbot.findFirst({
-        where: { userId: user.id },
-      });
+      chatbot = await withRetry(() =>
+        prisma.chatbot.findFirst({
+          where: { userId: user.id },
+        })
+      );
     }
 
     if (!chatbot) {
@@ -38,37 +43,43 @@ export async function POST(req: NextRequest) {
     }
 
     // Get or create conversation
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        chatbotId: chatbot.id,
-        sessionId,
-      },
-      include: {
-        messages: {
-          orderBy: { createdAt: "asc" },
-          take: 20, // Last 20 messages for context
-        },
-      },
-    });
-
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
+    let conversation = await withRetry(() =>
+      prisma.conversation.findFirst({
+        where: {
           chatbotId: chatbot.id,
           sessionId,
         },
-        include: { messages: true },
-      });
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" },
+            take: 20, // Last 20 messages for context
+          },
+        },
+      })
+    );
+
+    if (!conversation) {
+      conversation = await withRetry(() =>
+        prisma.conversation.create({
+          data: {
+            chatbotId: chatbot.id,
+            sessionId,
+          },
+          include: { messages: true },
+        })
+      );
     }
 
     // Save user message
-    await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        role: "user",
-        content: message,
-      },
-    });
+    await withRetry(() =>
+      prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: "user",
+          content: message,
+        },
+      })
+    );
 
     // Get relevant context from knowledge base
     let context = "";
@@ -107,13 +118,15 @@ export async function POST(req: NextRequest) {
           }
 
           // Save assistant message
-          await prisma.message.create({
-            data: {
-              conversationId: conversation!.id,
-              role: "assistant",
-              content: fullResponse,
-            },
-          });
+          await withRetry(() =>
+            prisma.message.create({
+              data: {
+                conversationId: conversation!.id,
+                role: "assistant",
+                content: fullResponse,
+              },
+            })
+          );
 
           controller.close();
         } catch (error) {
@@ -130,9 +143,17 @@ export async function POST(req: NextRequest) {
         "Access-Control-Allow-Origin": "*",
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Chat error:", error);
-    return new Response("Server error", { status: 500 });
+    const isConnectionError =
+      error.message?.includes('closed the connection') ||
+      error.message?.includes('P1017') ||
+      error.message?.includes('P1001') ||
+      error.message?.includes('ECONNRESET');
+
+    const status = isConnectionError ? 503 : 500;
+    const message = isConnectionError ? "Database connection error" : "Server error";
+    return new Response(message, { status });
   }
 }
 

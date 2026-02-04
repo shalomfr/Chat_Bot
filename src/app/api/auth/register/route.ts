@@ -1,36 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { withRetry } from "@/lib/withRetry";
 
 export const dynamic = 'force-dynamic';
-
-// Helper function to retry database operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  maxRetries = 3
-): Promise<T> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await operation();
-    } catch (error: any) {
-      const isConnectionError =
-        error.message?.includes('closed the connection') ||
-        error.message?.includes('P1001') ||
-        error.message?.includes('P1002');
-
-      if (isConnectionError && i < maxRetries - 1) {
-        console.log(`Retry ${i + 1}/${maxRetries} after connection error`);
-        // Disconnect and reconnect
-        await prisma.$disconnect();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await prisma.$connect();
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw new Error('Max retries reached');
-}
 
 export async function POST(req: Request) {
   try {
