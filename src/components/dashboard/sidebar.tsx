@@ -19,6 +19,7 @@ import {
   HelpCircle,
   Menu,
   X,
+  BarChart3,
 } from "lucide-react";
 
 interface User {
@@ -41,6 +42,7 @@ const navigation = [
 
 const adminNavigation = [
   { name: "ניהול משתמשים", href: "/dashboard/admin", icon: Users },
+  { name: "שימוש כללי", href: "/dashboard/admin/usage", icon: BarChart3 },
 ];
 
 export function Sidebar({ user }: { user: User }) {

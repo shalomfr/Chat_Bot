@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateChatResponse, ChatMessage } from "@/lib/anthropic";
+import { generateChatResponse, ChatMessage, calculateCost } from "@/lib/anthropic";
 import { withRetry } from "@/lib/withRetry";
 
 export const dynamic = 'force-dynamic';
@@ -126,24 +126,32 @@ export async function POST(req: NextRequest) {
     // Get response from OpenRouter (non-streaming for now)
     const systemPrompt = chatbot.systemPrompt || "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה.";
 
-    const response = await generateChatResponse(
+    const chatResponse = await generateChatResponse(
       chatMessages,
       systemPrompt,
       context
     );
 
-    // Save assistant message
+    // Calculate cost for this response
+    const cost = calculateCost(chatResponse.usage, chatResponse.model);
+
+    // Save assistant message with token usage
     await withRetry(() =>
       prisma.message.create({
         data: {
           conversationId: conversation!.id,
           role: "assistant",
-          content: response,
+          content: chatResponse.content,
+          promptTokens: chatResponse.usage.promptTokens,
+          completionTokens: chatResponse.usage.completionTokens,
+          totalTokens: chatResponse.usage.totalTokens,
+          cost: cost,
+          model: chatResponse.model,
         },
       })
     );
 
-    return new Response(response, {
+    return new Response(chatResponse.content, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Access-Control-Allow-Origin": "*",

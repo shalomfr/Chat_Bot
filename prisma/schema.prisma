@@ -120,5 +120,12 @@ model Message {
   content        String       @db.Text
   createdAt      DateTime     @default(now())
 
+  // Token usage tracking (only for assistant messages)
+  promptTokens     Int?       // Tokens in prompt (input)
+  completionTokens Int?       // Tokens in response (output)
+  totalTokens      Int?       // Total tokens used
+  cost             Float?     // Cost in USD
+  model            String?    // Model used (e.g., "anthropic/claude-3.5-sonnet")
+
   @@index([conversationId])
 }

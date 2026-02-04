@@ -3,14 +3,42 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface ChatResponse {
+  content: string;
+  usage: TokenUsage;
+  model: string;
+}
+
+// OpenRouter pricing for Claude 3.5 Sonnet (per token)
+export const OPENROUTER_PRICING = {
+  "anthropic/claude-3.5-sonnet": {
+    input: 0.000003,  // $3 per 1M tokens
+    output: 0.000015, // $15 per 1M tokens
+  },
+};
+
+export function calculateCost(usage: TokenUsage, model: string): number {
+  const pricing = OPENROUTER_PRICING[model as keyof typeof OPENROUTER_PRICING];
+  if (!pricing) return 0;
+  return (usage.promptTokens * pricing.input) + (usage.completionTokens * pricing.output);
+}
+
 export async function generateChatResponse(
   messages: ChatMessage[],
   systemPrompt: string,
   context: string
-): Promise<string> {
+): Promise<ChatResponse> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY is not configured");
   }
+
+  const model = "anthropic/claude-3.5-sonnet";
 
   const fullSystemPrompt = context
     ? `${systemPrompt}\n\nהנה מידע רלוונטי מבסיס הידע שלך:\n${context}\n\nהשתמש במידע הזה כדי לענות על שאלות המשתמש. אם המידע לא רלוונטי לשאלה, אל תציין אותו.`
@@ -24,7 +52,7 @@ export async function generateChatResponse(
       "HTTP-Referer": process.env.AUTH_URL || "https://chatbot-saas-chea.onrender.com",
     },
     body: JSON.stringify({
-      model: "anthropic/claude-3.5-sonnet",
+      model,
       messages: [
         { role: "system", content: fullSystemPrompt },
         ...messages.map((m) => ({
@@ -43,7 +71,20 @@ export async function generateChatResponse(
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
+  const content = data.choices?.[0]?.message?.content || "";
+
+  // Extract usage data from OpenRouter response
+  const usage: TokenUsage = {
+    promptTokens: data.usage?.prompt_tokens || 0,
+    completionTokens: data.usage?.completion_tokens || 0,
+    totalTokens: data.usage?.total_tokens || 0,
+  };
+
+  return {
+    content,
+    usage,
+    model,
+  };
 }
 
 export async function* generateChatResponseStream(
