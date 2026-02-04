@@ -209,6 +209,7 @@ export default function ConversationsPage() {
               </div>
             ) : (
               <ScrollArea className="h-[500px]">
+                <div className="ps-2">
                 {conversations.map((conv) => (
                   <div
                     key={conv.id}
@@ -254,6 +255,7 @@ export default function ConversationsPage() {
                     </div>
                   </div>
                 ))}
+                </div>
               </ScrollArea>
             )}
           </CardContent>
