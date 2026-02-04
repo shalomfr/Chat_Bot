@@ -2,28 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withRetry } from "@/lib/withRetry";
+import { indexKnowledge } from "@/lib/vectors";
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
-
-// Process embeddings in a separate API call to avoid timeout
-async function saveKnowledgeSource(
-  chatbotId: string,
-  fileName: string,
-  content: string
-) {
-  return await withRetry(() =>
-    prisma.knowledgeSource.create({
-      data: {
-        chatbotId,
-        type: "file",
-        name: fileName,
-        content,
-        status: "pending", // Will be processed later
-      },
-    })
-  );
-}
+export const maxDuration = 120; // 2 minutes for upload + processing
 
 export async function POST(req: NextRequest) {
   console.log("Upload route called");
@@ -101,18 +83,66 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Save to database
-        const source = await saveKnowledgeSource(chatbot.id, file.name, content);
+        // Save to database with processing status
+        const source = await withRetry(() =>
+          prisma.knowledgeSource.create({
+            data: {
+              chatbotId: chatbot.id,
+              type: "file",
+              name: file.name,
+              content,
+              status: "processing",
+            },
+          })
+        );
         console.log("Source saved:", source.id);
 
-        results.push(source);
+        // Process embeddings directly
+        try {
+          console.log("Starting indexKnowledge for:", source.id);
+          await indexKnowledge(chatbot.id, source.id, content);
+          console.log("indexKnowledge completed for:", source.id);
 
-        // Trigger background processing
-        fetch(`${process.env.AUTH_URL || ""}/api/knowledge/process`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceId: source.id }),
-        }).catch((err) => console.error("Failed to trigger processing:", err));
+          // Update status to ready
+          await withRetry(() =>
+            prisma.knowledgeSource.update({
+              where: { id: source.id },
+              data: { status: "ready" },
+            })
+          );
+          console.log("Status updated to ready for:", source.id);
+
+          // Fetch updated source
+          const updatedSource = await withRetry(() =>
+            prisma.knowledgeSource.findUnique({
+              where: { id: source.id },
+            })
+          );
+
+          results.push(updatedSource);
+
+        } catch (indexError: any) {
+          console.error("Index error:", indexError?.message || indexError);
+
+          // Update status to failed
+          await withRetry(() =>
+            prisma.knowledgeSource.update({
+              where: { id: source.id },
+              data: {
+                status: "failed",
+                error: indexError?.message || "Failed to process",
+              },
+            })
+          );
+
+          // Still return the source (with failed status)
+          const failedSource = await withRetry(() =>
+            prisma.knowledgeSource.findUnique({
+              where: { id: source.id },
+            })
+          );
+          results.push(failedSource);
+        }
 
       } catch (fileError: any) {
         console.error("File processing error:", fileError?.message);
