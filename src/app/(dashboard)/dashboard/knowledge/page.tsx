@@ -60,6 +60,54 @@ export default function KnowledgePage() {
     }
   };
 
+  // Process a source in the background by calling the process route
+  const processSourceInBackground = async (sourceId: string) => {
+    // Update local state to show "processing"
+    setSources(prev => prev.map(s =>
+      s.id === sourceId ? { ...s, status: "processing" } : s
+    ));
+
+    try {
+      const res = await fetch("/api/knowledge/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId }),
+      });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        // Server returned HTML error - refresh to check actual status
+        console.error("Process returned non-JSON response");
+        fetchSources();
+        return;
+      }
+
+      const result = await res.json();
+
+      // Update local state with the result
+      setSources(prev => prev.map(s =>
+        s.id === sourceId ? { ...s, ...result } : s
+      ));
+
+      if (result.status === "ready") {
+        toast({
+          title: "הצלחה!",
+          description: "הקובץ עובד בהצלחה",
+        });
+      } else if (result.status === "failed") {
+        toast({
+          title: "שגיאה בעיבוד",
+          description: result.error || "העיבוד נכשל",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Process error:", error);
+      // On error, refresh to get actual state
+      fetchSources();
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
@@ -72,35 +120,44 @@ export default function KnowledgePage() {
     }
 
     try {
+      // Step 1: Upload files (quick - just saves to DB)
       const res = await fetch("/api/knowledge/upload", {
         method: "POST",
         body: formData,
       });
 
-      // Check if response is JSON
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("השרת לא הגיב כראוי. נסה שוב או העלה קובץ קטן יותר.");
+        throw new Error("השרת לא הגיב כראוי. נסה שוב.");
       }
 
       const data = await res.json();
 
-      if (res.ok) {
-        toast({
-          title: "הועלה בהצלחה!",
-          description: "הקבצים נוספו למאגר הידע",
-        });
-        fetchSources();
-      } else {
+      if (!res.ok) {
         throw new Error(data.error || "שגיאה בהעלאה");
       }
+
+      // Step 2: Add uploaded sources to local state
+      const uploadedSources = Array.isArray(data) ? data : [data];
+      setSources(prev => [...uploadedSources, ...prev]);
+
+      toast({
+        title: "הקבצים נשמרו",
+        description: "מתחיל לעבד את התוכן...",
+      });
+
+      // Step 3: Process each source in the background
+      for (const source of uploadedSources) {
+        processSourceInBackground(source.id);
+      }
+
     } catch (error: any) {
       toast({
         title: "שגיאה",
         description: error.message || "שגיאה בהעלאת הקובץ",
         variant: "destructive",
       });
-      fetchSources(); // Refresh to see if file was added
+      fetchSources();
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

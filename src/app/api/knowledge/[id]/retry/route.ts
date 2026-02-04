@@ -5,7 +5,7 @@ import { withRetry } from "@/lib/withRetry";
 import { indexKnowledge } from "@/lib/vectors";
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // 1 minute - reduced to avoid timeouts
+export const maxDuration = 300; // 5 minutes - matches process route
 
 export async function POST(
   req: NextRequest,

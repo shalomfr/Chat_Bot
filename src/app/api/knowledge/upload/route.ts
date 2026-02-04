@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withRetry } from "@/lib/withRetry";
-import { indexKnowledge } from "@/lib/vectors";
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // 1 minute - reduced to avoid timeouts
+export const maxDuration = 30; // Quick save only - no processing
 
 export async function POST(req: NextRequest) {
   console.log("Upload route called at", new Date().toISOString());
@@ -83,14 +82,14 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Limit content to 100KB to prevent timeout
+        // Limit content to 100KB
         const maxContentLength = 100000;
         if (content.length > maxContentLength) {
           console.log(`Content truncated from ${content.length} to ${maxContentLength}`);
         }
         const processedContent = content.slice(0, maxContentLength);
 
-        // Save to database with processing status
+        // Save to database with pending status (processing done separately)
         const source = await withRetry(() =>
           prisma.knowledgeSource.create({
             data: {
@@ -98,58 +97,13 @@ export async function POST(req: NextRequest) {
               type: "file",
               name: file.name,
               content: processedContent,
-              status: "processing",
+              status: "pending", // Changed from "processing" - frontend will trigger processing
             },
           })
         );
-        console.log("Source saved:", source.id);
+        console.log("Source saved with pending status:", source.id);
 
-        // Process embeddings directly
-        try {
-          console.log("Starting indexKnowledge for:", source.id);
-          await indexKnowledge(chatbot.id, source.id, processedContent);
-          console.log("indexKnowledge completed for:", source.id);
-
-          // Update status to ready
-          await withRetry(() =>
-            prisma.knowledgeSource.update({
-              where: { id: source.id },
-              data: { status: "ready" },
-            })
-          );
-          console.log("Status updated to ready for:", source.id);
-
-          // Fetch updated source
-          const updatedSource = await withRetry(() =>
-            prisma.knowledgeSource.findUnique({
-              where: { id: source.id },
-            })
-          );
-
-          results.push(updatedSource);
-
-        } catch (indexError: any) {
-          console.error("Index error:", indexError?.message || indexError);
-
-          // Update status to failed
-          await withRetry(() =>
-            prisma.knowledgeSource.update({
-              where: { id: source.id },
-              data: {
-                status: "failed",
-                error: indexError?.message || "Failed to process",
-              },
-            })
-          );
-
-          // Still return the source (with failed status)
-          const failedSource = await withRetry(() =>
-            prisma.knowledgeSource.findUnique({
-              where: { id: source.id },
-            })
-          );
-          results.push(failedSource);
-        }
+        results.push(source);
 
       } catch (fileError: any) {
         console.error("File processing error:", fileError?.message);
