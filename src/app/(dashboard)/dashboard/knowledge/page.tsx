@@ -6,7 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Upload, Link as LinkIcon, Trash2, FileText, Globe, CheckCircle, XCircle, Clock } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  Link as LinkIcon,
+  Trash2,
+  FileText,
+  Globe,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Database,
+  FolderOpen,
+  Plus,
+} from "lucide-react";
 
 interface KnowledgeSource {
   id: string;
@@ -141,57 +154,128 @@ export default function KnowledgePage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "ready":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+            <CheckCircle className="h-3.5 w-3.5" />
+            מוכן
+          </span>
+        );
       case "failed":
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            <XCircle className="h-3.5 w-3.5" />
+            נכשל
+          </span>
+        );
       case "processing":
-        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            מעבד...
+          </span>
+        );
       default:
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+            <Clock className="h-3.5 w-3.5" />
+            ממתין
+          </span>
+        );
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "ready":
-        return "מוכן";
-      case "failed":
-        return "נכשל";
-      case "processing":
-        return "מעבד...";
-      default:
-        return "ממתין";
-    }
-  };
+  const readyCount = sources.filter((s) => s.status === "ready").length;
+  const processingCount = sources.filter((s) => s.status === "processing").length;
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">מאגר ידע</h1>
-        <p className="text-muted-foreground">
-          הוסף מסמכים ולינקים כדי שהצ'אטבוט יוכל לענות עליהם
-        </p>
+        <div className="flex items-center gap-3 mb-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/30">
+            <Database className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">מאגר ידע</h1>
+            <p className="text-gray-500">הוסף מסמכים ולינקים כדי שהצ׳אטבוט יוכל לענות עליהם</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-violet-50 to-purple-100">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/30">
+                <FolderOpen className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">סה״כ מקורות</p>
+                <p className="text-2xl font-bold text-gray-800">{sources.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-50 to-green-100">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 shadow-lg shadow-emerald-500/30">
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">מוכנים לשימוש</p>
+                <p className="text-2xl font-bold text-gray-800">{readyCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/30">
+                <Loader2 className={`h-6 w-6 text-white ${processingCount > 0 ? "animate-spin" : ""}`} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">בעיבוד</p>
+                <p className="text-2xl font-bold text-gray-800">{processingCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="files" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="files">העלאת קבצים</TabsTrigger>
-          <TabsTrigger value="urls">הוספת לינק</TabsTrigger>
+        <TabsList className="bg-white shadow-sm border-0 p-1 rounded-xl">
+          <TabsTrigger
+            value="files"
+            className="rounded-lg data-[state=active]:bg-gradient-to-l data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg"
+          >
+            <Upload className="h-4 w-4 ml-2" />
+            העלאת קבצים
+          </TabsTrigger>
+          <TabsTrigger
+            value="urls"
+            className="rounded-lg data-[state=active]:bg-gradient-to-l data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg"
+          >
+            <LinkIcon className="h-4 w-4 ml-2" />
+            הוספת לינק
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="files">
-          <Card>
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>העלאת קבצים</CardTitle>
-              <CardDescription>
-                העלה קבצי PDF, TXT או DOCX
-              </CardDescription>
+              <CardTitle className="text-gray-800">העלאת קבצים</CardTitle>
+              <CardDescription>העלה קבצי PDF, TXT או DOCX</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <div className="border-2 border-dashed border-blue-200 rounded-2xl p-10 text-center bg-blue-50/50 hover:bg-blue-50 hover:border-blue-300 transition-all">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -205,17 +289,17 @@ export default function KnowledgePage() {
                   htmlFor="file-upload"
                   className="cursor-pointer flex flex-col items-center"
                 >
-                  {isUploading ? (
-                    <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" />
-                  ) : (
-                    <Upload className="h-10 w-10 text-muted-foreground" />
-                  )}
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {isUploading
-                      ? "מעלה..."
-                      : "לחץ לבחירת קבצים או גרור לכאן"}
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 mb-4">
+                    {isUploading ? (
+                      <Loader2 className="h-8 w-8 text-white animate-spin" />
+                    ) : (
+                      <Upload className="h-8 w-8 text-white" />
+                    )}
+                  </div>
+                  <p className="text-gray-700 font-medium">
+                    {isUploading ? "מעלה..." : "לחץ לבחירת קבצים או גרור לכאן"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-gray-500 mt-1">
                     PDF, TXT, DOCX עד 10MB
                   </p>
                 </label>
@@ -225,12 +309,10 @@ export default function KnowledgePage() {
         </TabsContent>
 
         <TabsContent value="urls">
-          <Card>
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>הוספת לינק</CardTitle>
-              <CardDescription>
-                הוסף כתובת URL ונמשוך את התוכן אוטומטית
-              </CardDescription>
+              <CardTitle className="text-gray-800">הוספת לינק</CardTitle>
+              <CardDescription>הוסף כתובת URL ונמשוך את התוכן אוטומטית</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex gap-3">
@@ -239,13 +321,18 @@ export default function KnowledgePage() {
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://example.com/page"
                   dir="ltr"
+                  className="rounded-xl border-gray-200 focus:border-blue-300"
                 />
-                <Button onClick={handleAddUrl} disabled={isAddingUrl || !url.trim()}>
+                <Button
+                  onClick={handleAddUrl}
+                  disabled={isAddingUrl || !url.trim()}
+                  className="bg-gradient-to-l from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl shadow-lg shadow-blue-500/30"
+                >
                   {isAddingUrl ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <LinkIcon className="h-4 w-4 ml-2" />
+                      <Plus className="h-4 w-4 ml-2" />
                       הוסף
                     </>
                   )}
@@ -256,40 +343,57 @@ export default function KnowledgePage() {
         </TabsContent>
       </Tabs>
 
-      <Card className="mt-6">
+      {/* Sources List */}
+      <Card className="mt-6 border-0 shadow-lg bg-white/80 backdrop-blur-sm overflow-hidden">
+        <div className="h-1 bg-gradient-to-l from-violet-500 to-purple-600"></div>
         <CardHeader>
-          <CardTitle>מקורות ידע ({sources.length})</CardTitle>
-          <CardDescription>כל המקורות שנוספו לצ'אטבוט</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-gray-800">
+            <Database className="h-5 w-5 text-violet-500" />
+            מקורות ידע ({sources.length})
+          </CardTitle>
+          <CardDescription>כל המקורות שנוספו לצ׳אטבוט</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-10 w-10 animate-spin text-blue-500 mb-4" />
+              <p className="text-gray-500">טוען מקורות...</p>
             </div>
           ) : sources.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              עדיין לא נוספו מקורות ידע
-            </p>
+            <div className="text-center py-12">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 mx-auto mb-4">
+                <FolderOpen className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-gray-500 font-medium">עדיין לא נוספו מקורות ידע</p>
+              <p className="text-sm text-gray-400 mt-1">העלה קבצים או הוסף לינקים כדי להתחיל</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {sources.map((source) => (
                 <div
                   key={source.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-blue-50/50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    {source.type === "file" ? (
-                      <FileText className="h-5 w-5 text-blue-500" />
-                    ) : (
-                      <Globe className="h-5 w-5 text-green-500" />
-                    )}
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl shadow-lg ${
+                        source.type === "file"
+                          ? "bg-gradient-to-br from-blue-500 to-indigo-500 shadow-blue-500/20"
+                          : "bg-gradient-to-br from-emerald-500 to-green-500 shadow-emerald-500/20"
+                      }`}
+                    >
+                      {source.type === "file" ? (
+                        <FileText className="h-5 w-5 text-white" />
+                      ) : (
+                        <Globe className="h-5 w-5 text-white" />
+                      )}
+                    </div>
                     <div>
-                      <p className="font-medium">{source.name}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {getStatusIcon(source.status)}
-                        <span>{getStatusText(source.status)}</span>
+                      <p className="font-semibold text-gray-800">{source.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {getStatusBadge(source.status)}
                         {source.error && (
-                          <span className="text-red-500">({source.error})</span>
+                          <span className="text-xs text-red-500">({source.error})</span>
                         )}
                       </div>
                     </div>
@@ -298,8 +402,9 @@ export default function KnowledgePage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDelete(source.id)}
+                    className="rounded-xl hover:bg-red-100"
                   >
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
                 </div>
               ))}

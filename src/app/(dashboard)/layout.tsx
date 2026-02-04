@@ -18,19 +18,24 @@ export default async function DashboardLayout({
     redirect("/pending-approval");
   }
 
+  const userData = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    isAdmin: user.isAdmin,
+  };
+
   return (
-    <div className="flex h-screen">
-      <Sidebar
-        user={{
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-          isAdmin: user.isAdmin,
-        }}
-      />
-      <main className="flex-1 overflow-auto bg-gray-50">
-        <div className="container mx-auto p-6">{children}</div>
+    <div className="flex h-screen bg-gradient-to-bl from-blue-50 via-white to-gray-50">
+      {/* Sidebar - will appear on the right side due to RTL */}
+      <Sidebar user={userData} />
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto">
+        <div className="min-h-full p-6 lg:p-8">
+          {children}
+        </div>
       </main>
     </div>
   );
