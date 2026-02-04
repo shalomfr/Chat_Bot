@@ -5,16 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Loader2,
   BarChart3,
   DollarSign,
   Zap,
   Users,
   MessageSquare,
-  ArrowRight,
   ChevronDown,
   ChevronUp,
-  Clock,
+  User,
+  Bot,
+  X,
+  Eye,
 } from "lucide-react";
 
 interface UserUsage {
@@ -40,6 +48,19 @@ interface Totals {
   activeUsers: number;
 }
 
+interface Message {
+  id: string;
+  role: string;
+  content: string;
+  contentPreview?: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  cost: number | null;
+  model: string | null;
+  createdAt: string;
+}
+
 interface ConversationDetail {
   id: string;
   chatbotName: string;
@@ -51,17 +72,7 @@ interface ConversationDetail {
   cost: number;
   createdAt: string;
   updatedAt: string;
-  messages: {
-    id: string;
-    role: string;
-    content: string;
-    promptTokens: number | null;
-    completionTokens: number | null;
-    totalTokens: number | null;
-    cost: number | null;
-    model: string | null;
-    createdAt: string;
-  }[];
+  messages: Message[];
 }
 
 interface UserDetails {
@@ -106,6 +117,7 @@ export default function AdminUsagePage() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -287,7 +299,7 @@ export default function AdminUsagePage() {
             <Users className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500" />
             שימוש לפי משתמש ({users.length})
           </CardTitle>
-          <CardDescription className="text-sm">לחץ על משתמש לצפייה בפרטי השיחות</CardDescription>
+          <CardDescription className="text-sm">לחץ על משתמש לצפייה בפרטי השיחות, ואז על שיחה לצפייה בהודעות</CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0">
           {users.length === 0 ? (
@@ -373,23 +385,39 @@ export default function AdminUsagePage() {
 
                           {/* Conversations */}
                           <p className="text-sm font-medium text-gray-700 mb-2">שיחות ({userDetails.conversations.length})</p>
-                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                          <div className="space-y-2 max-h-96 overflow-y-auto">
                             {userDetails.conversations.length === 0 ? (
                               <p className="text-sm text-gray-400 text-center py-4">אין שיחות</p>
                             ) : (
                               userDetails.conversations.map((conv) => (
-                                <div key={conv.id} className="bg-gray-50 rounded-lg p-3">
+                                <div
+                                  key={conv.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedConversation(conv);
+                                  }}
+                                  className="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-blue-50 transition-colors group"
+                                >
                                   <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs font-medium text-gray-600">{conv.chatbotName}</span>
-                                    <span className="text-xs text-gray-400">
-                                      {new Date(conv.updatedAt).toLocaleDateString("he-IL")}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-400">
+                                        {new Date(conv.updatedAt).toLocaleDateString("he-IL")}
+                                      </span>
+                                      <Eye className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-4 text-xs text-gray-500">
                                     <span>{conv.messagesCount} הודעות</span>
                                     <span>{formatNumber(conv.totalTokens)} טוקנים</span>
                                     <span className="text-emerald-600">{formatCost(conv.cost)}</span>
                                   </div>
+                                  {/* Preview of first message */}
+                                  {conv.messages.length > 0 && (
+                                    <p className="text-xs text-gray-400 mt-2 truncate">
+                                      {conv.messages[0].contentPreview || conv.messages[0].content.slice(0, 100)}...
+                                    </p>
+                                  )}
                                 </div>
                               ))
                             )}
@@ -404,6 +432,84 @@ export default function AdminUsagePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Conversation History Modal */}
+      <Dialog open={!!selectedConversation} onOpenChange={() => setSelectedConversation(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <MessageSquare className="h-5 w-5 text-blue-500" />
+              היסטוריית שיחה - {selectedConversation?.chatbotName}
+            </DialogTitle>
+            <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
+              <span>{selectedConversation?.messagesCount} הודעות</span>
+              <span>{formatNumber(selectedConversation?.totalTokens || 0)} טוקנים</span>
+              <span className="text-emerald-600">{formatCost(selectedConversation?.cost || 0)}</span>
+              <span>
+                {selectedConversation?.updatedAt && new Date(selectedConversation.updatedAt).toLocaleDateString("he-IL", {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto mt-4 space-y-4 pr-2">
+            {selectedConversation?.messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+              >
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 ${
+                    msg.role === "user"
+                      ? "bg-gradient-to-br from-blue-500 to-indigo-500"
+                      : "bg-gradient-to-br from-emerald-500 to-green-500"
+                  }`}
+                >
+                  {msg.role === "user" ? (
+                    <User className="h-4 w-4 text-white" />
+                  ) : (
+                    <Bot className="h-4 w-4 text-white" />
+                  )}
+                </div>
+                <div
+                  className={`flex-1 rounded-xl p-4 ${
+                    msg.role === "user"
+                      ? "bg-blue-50 border border-blue-100"
+                      : "bg-gray-50 border border-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500">
+                      {msg.role === "user" ? "משתמש" : "בוט"}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(msg.createdAt).toLocaleTimeString("he-IL", {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{msg.content}</p>
+                  {msg.role === "assistant" && msg.totalTokens && (
+                    <div className="flex items-center gap-3 mt-3 pt-2 border-t border-gray-200 text-xs text-gray-400">
+                      <span>קלט: {msg.promptTokens}</span>
+                      <span>פלט: {msg.completionTokens}</span>
+                      <span>סה״כ: {msg.totalTokens}</span>
+                      {msg.cost && <span className="text-emerald-500">{formatCost(msg.cost)}</span>}
+                      {msg.model && <span className="text-gray-300">{msg.model.split('/')[1]}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

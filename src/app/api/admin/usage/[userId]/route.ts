@@ -108,7 +108,8 @@ export async function GET(
           messages: conv.messages.map((m) => ({
             id: m.id,
             role: m.role,
-            content: m.content.slice(0, 200) + (m.content.length > 200 ? "..." : ""),
+            content: m.content,
+            contentPreview: m.content.slice(0, 200) + (m.content.length > 200 ? "..." : ""),
             promptTokens: m.promptTokens,
             completionTokens: m.completionTokens,
             totalTokens: m.totalTokens,
