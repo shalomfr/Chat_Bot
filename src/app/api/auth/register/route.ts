@@ -2,6 +2,36 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+export const dynamic = 'force-dynamic';
+
+// Helper function to retry database operations
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      const isConnectionError =
+        error.message?.includes('closed the connection') ||
+        error.message?.includes('P1001') ||
+        error.message?.includes('P1002');
+
+      if (isConnectionError && i < maxRetries - 1) {
+        console.log(`Retry ${i + 1}/${maxRetries} after connection error`);
+        // Disconnect and reconnect
+        await prisma.$disconnect();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await prisma.$connect();
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Max retries reached');
+}
+
 export async function POST(req: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -28,10 +58,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Check if user already exists (with retry)
+    const existingUser = await withRetry(() =>
+      prisma.user.findUnique({
+        where: { email },
+      })
+    );
 
     if (existingUser) {
       return NextResponse.json(
@@ -43,24 +75,28 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
-    });
+    // Create user (with retry)
+    const user = await withRetry(() =>
+      prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+        },
+      })
+    );
 
-    // Create default chatbot
-    await prisma.chatbot.create({
-      data: {
-        userId: user.id,
-        name: "הצ'אטבוט שלי",
-        systemPrompt: "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה בעברית.",
-        welcomeMessage: "שלום! איך אוכל לעזור לך היום?",
-      },
-    });
+    // Create default chatbot (with retry)
+    await withRetry(() =>
+      prisma.chatbot.create({
+        data: {
+          userId: user.id,
+          name: "הצ'אטבוט שלי",
+          systemPrompt: "אתה עוזר וירטואלי מועיל. ענה על שאלות בצורה ברורה ומועילה בעברית.",
+          welcomeMessage: "שלום! איך אוכל לעזור לך היום?",
+        },
+      })
+    );
 
     return NextResponse.json({
       success: true,

@@ -8,11 +8,26 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-// Handle connection issues - reconnect on error
-prisma.$connect().catch((e) => {
-  console.error("Failed to connect to database:", e);
-});
+// Ensure fresh connection
+async function ensureConnection() {
+  try {
+    await prisma.$connect();
+  } catch (e) {
+    console.error("Database connection error:", e);
+    // Try to disconnect and reconnect
+    await prisma.$disconnect();
+    await prisma.$connect();
+  }
+}
+
+// Connect on startup
+ensureConnection();
