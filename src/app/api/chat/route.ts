@@ -15,6 +15,19 @@ export async function POST(req: NextRequest) {
       return new Response("Missing message or sessionId", { status: 400 });
     }
 
+    // Input validation
+    if (typeof message !== "string" || message.length > 4000) {
+      return new Response("ההודעה ארוכה מדי (מקסימום 4000 תווים)", { status: 400 });
+    }
+
+    if (typeof sessionId !== "string" || sessionId.length > 50) {
+      return new Response("Invalid sessionId", { status: 400 });
+    }
+
+    if (providedChatbotId && (typeof providedChatbotId !== "string" || providedChatbotId.length > 30)) {
+      return new Response("Invalid chatbotId", { status: 400 });
+    }
+
     // Get chatbot - either from provided ID (widget) or user session (playground)
     let chatbot;
 

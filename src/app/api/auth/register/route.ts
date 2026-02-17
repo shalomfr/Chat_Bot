@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     const isPrisma = message.includes("prisma") || message.includes("P1001") || message.includes("P1002");
     console.error("Registration error:", error);
 
-    if (process.env.NODE_ENV === "development" || isPrisma) {
+    if (process.env.NODE_ENV === "development") {
       return NextResponse.json(
         { error: "אירעה שגיאה בהרשמה", details: message },
         { status: 500 }

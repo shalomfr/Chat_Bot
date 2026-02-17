@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
+    if (isPrivateUrl(url)) {
+      return NextResponse.json({ error: "כתובת URL זו אינה מורשית" }, { status: 400 });
+    }
+
     // Create knowledge source
     const source = await prisma.knowledgeSource.create({
       data: {
@@ -55,6 +59,40 @@ function isValidUrl(string: string): boolean {
     return true;
   } catch (_) {
     return false;
+  }
+}
+
+function isPrivateUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+
+    // Block localhost
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname === "::1") {
+      return true;
+    }
+
+    // Block private IP ranges
+    const parts = hostname.split(".").map(Number);
+    if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
+      // 10.x.x.x
+      if (parts[0] === 10) return true;
+      // 172.16-31.x.x
+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+      // 192.168.x.x
+      if (parts[0] === 192 && parts[1] === 168) return true;
+      // 169.254.x.x (AWS metadata)
+      if (parts[0] === 169 && parts[1] === 254) return true;
+    }
+
+    // Block non-http(s) schemes
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return true;
   }
 }
 

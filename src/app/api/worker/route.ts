@@ -10,8 +10,10 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // Verify cron secret
-    const secret = req.nextUrl.searchParams.get("secret");
+    // Verify cron secret (check header first, then query param for backwards compat)
+    const headerAuth = req.headers.get("authorization")?.replace("Bearer ", "");
+    const querySecret = req.nextUrl.searchParams.get("secret");
+    const secret = headerAuth || querySecret;
     const cronSecret = process.env.CRON_SECRET;
 
     if (!cronSecret) {
@@ -51,7 +53,9 @@ export async function POST(req: NextRequest) {
 // GET /api/worker?secret=YOUR_CRON_SECRET - check status
 export async function GET(req: NextRequest) {
   try {
-    const secret = req.nextUrl.searchParams.get("secret");
+    const headerAuth = req.headers.get("authorization")?.replace("Bearer ", "");
+    const querySecret = req.nextUrl.searchParams.get("secret");
+    const secret = headerAuth || querySecret;
     if (secret !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

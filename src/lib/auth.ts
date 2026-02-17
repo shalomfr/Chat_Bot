@@ -33,6 +33,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Check for admin password
         if (password === process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD) {
+          // Only allow admin login for the designated admin email
+          const adminEmail = process.env.ADMIN_EMAIL;
+          if (adminEmail && email !== adminEmail) {
+            return null;
+          }
+
           let user = await withRetry(() =>
             prisma.user.findUnique({
               where: { email },
