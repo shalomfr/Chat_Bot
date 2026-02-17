@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>בדיקת הטמעת צ'אטבוט</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    header {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: white;
+      padding: 20px 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      font-size: 24px;
+    }
+    header p {
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+    nav {
+      background: white;
+      padding: 12px 40px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      gap: 24px;
+    }
+    nav a {
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      padding: 8px 0;
+      border-bottom: 2px solid transparent;
+    }
+    nav a:hover, nav a.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+    }
+    main {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .hero {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .hero h2 {
+      font-size: 36px;
+      margin-bottom: 16px;
+      color: #1e293b;
+    }
+    .hero p {
+      font-size: 18px;
+      color: #64748b;
+      max-width: 600px;
+      margin: 0 auto 30px;
+      line-height: 1.7;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin-top: 40px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+    }
+    .card h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+    .card p {
+      color: #64748b;
+      line-height: 1.6;
+    }
+    .card .icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+    footer {
+      text-align: center;
+      padding: 30px;
+      color: #94a3b8;
+      margin-top: 60px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .badge {
+      display: inline-block;
+      background: #dbeafe;
+      color: #3b82f6;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>האתר שלי</h1>
+    <p>דף בדיקה להטמעת הצ'אטבוט</p>
+  </header>
+
+  <nav>
+    <a href="#" class="active">דף הבית</a>
+    <a href="#">אודות</a>
+    <a href="#">שירותים</a>
+    <a href="#">צור קשר</a>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <span class="badge">דף בדיקה</span>
+      <h2>ברוכים הבאים לאתר שלנו</h2>
+      <p>
+        זהו דף סטטי לבדיקת הטמעת הצ'אטבוט. לחץ על כפתור הצ'אט בפינה הימנית התחתונה כדי לפתוח את הווידג'ט.
+      </p>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">💬</div>
+        <h3>צ'אט חכם</h3>
+        <p>צ'אטבוט מבוסס בינה מלאכותית שיכול לענות על שאלות ולסייע ללקוחות שלך.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔧</div>
+        <h3>התאמה אישית</h3>
+        <p>אפשרות להתאים את הצ'אטבוט למותג שלך עם צבעים ומסרים מותאמים.</p>
+      </div>
+      <div class="card">
+        <div class="icon">📊</div>
+        <h3>מעקב וניתוח</h3>
+        <p>צפה בהיסטוריית שיחות ועקוב אחרי שימוש בטוקנים ועלויות.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2026 דף בדיקה להטמעת צ'אטבוט</p>
+  </footer>
+
+  <!-- Chatbot Widget -->
+  <script>
+    // Auto-fetch chatbot ID from server
+    fetch('/api/chatbot')
+      .then(r => r.json())
+      .then(data => {
+        const script = document.createElement('script');
+        script.src = '/widget/chatbot.js';
+        script.setAttribute('data-chatbot-id', data.id);
+        script.async = true;
+        document.body.appendChild(script);
+        console.log('Chatbot loaded with ID:', data.id);
+      })
+      .catch(err => {
+        console.error('Could not load chatbot:', err);
+        const fallback = document.createElement('div');
+        fallback.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#ef4444;color:white;padding:12px 20px;border-radius:8px;z-index:9999;font-size:14px;';
+        fallback.textContent = 'שגיאה: לא ניתן לטעון את הצ\'אטבוט';
+        document.body.appendChild(fallback);
+      });
+  </script>
+</body>
+</html>
