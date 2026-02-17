@@ -21,9 +21,9 @@ function isRateLimited(key: string, maxRequests: number, windowMs: number): bool
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, entry] of rateLimitMap) {
+    rateLimitMap.forEach((entry, key) => {
       if (now > entry.resetTime) rateLimitMap.delete(key);
-    }
+    });
   }, 5 * 60 * 1000);
 }
 
